@@ -1,0 +1,37 @@
+import React from "react";
+export interface TactilePromptInputProps {
+    value?: string;
+    defaultValue?: string;
+    placeholder?: string;
+    onChange?: (value: string) => void;
+    onSubmit?: (value: string) => void;
+    onMentionClick?: () => void;
+    agentLabel?: string;
+    modeLabel?: string;
+    onAgentClick?: () => void;
+    onModeClick?: () => void;
+    className?: string;
+    refraction?: number;
+    thickness?: number;
+    bevelWidth?: number;
+    frost?: number;
+    dispersion?: number;
+    sheen?: number;
+    lightAngle?: number;
+    darkness?: number;
+    rim?: number;
+    fluidBrightness?: number;
+    fluidSpeed?: number;
+    fluidScale?: number;
+    fluidAuraWidth?: number;
+    fluidCenter?: number;
+    auroraFlow?: number;
+    hoverBrightness?: number;
+    trackCursorLight?: boolean;
+    lightTrackingStrength?: number;
+    clickShockwave?: boolean;
+    shockwaveStrength?: number;
+}
+export declare const TactilePromptInput: React.FC<TactilePromptInputProps>;
+export declare const TactileAgentInput: React.FC<TactilePromptInputProps>;
+export default TactilePromptInput;

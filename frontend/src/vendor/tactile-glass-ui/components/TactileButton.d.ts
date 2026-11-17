@@ -1,0 +1,36 @@
+import React from "react";
+export interface TactileGlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+    children?: React.ReactNode;
+    variant?: "pill" | "switch";
+    shape?: "pill" | "circle";
+    size?: "xl";
+    className?: string;
+    refraction?: number;
+    thickness?: number;
+    bevelWidth?: number;
+    frost?: number;
+    dispersion?: number;
+    sheen?: number;
+    lightAngle?: number;
+    darkness?: number;
+    rim?: number;
+    fluidBrightness?: number;
+    fluidSpeed?: number;
+    fluidScale?: number;
+    fluidAuraWidth?: number;
+    fluidCenter?: number;
+    auroraFlow?: number;
+    causticBrightness?: number;
+    causticSpeed?: number;
+    causticScale?: number;
+    fluidDispersion?: number;
+    hoverBrightness?: number;
+    trackCursorLight?: boolean;
+    lightTrackingStrength?: number;
+    clickShockwave?: boolean;
+    shockwaveStrength?: number;
+}
+export declare const TactileGlassButton: React.FC<TactileGlassButtonProps>;
+export declare const TactileButton: React.FC<TactileGlassButtonProps>;
+export declare const FluidCausticButton: React.FC<TactileGlassButtonProps>;
+export default TactileGlassButton;
