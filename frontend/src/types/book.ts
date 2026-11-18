@@ -9,7 +9,7 @@ export interface Book {
   genero: string;
   ano: number;
   sinopse: string;
-  _formatted?: Partial<Pick<Book, 'titulo' | 'autor' | 'sinopse'>>;
+  _formatted?: Partial<Pick<Book, 'titulo' | 'autor' | 'genero' | 'sinopse'>>;
 }
 
 export interface SearchResponse {

@@ -78,17 +78,13 @@
   /* Text-glow monocromático e Y2K para termos correspondentes à busca */
   .search-highlight-mono {
     color: #ffffff;
-    background: rgba(188, 215, 247, 0.14);
-    border: 1px solid rgba(188, 215, 247, 0.3);
-    text-shadow: 0 0 14px rgba(188, 215, 247, 0.55);
+    background: linear-gradient(transparent 58%, rgba(188, 215, 247, 0.35) 58%);
   }
 
   .search-highlight-cyber {
     color: #ffffff;
-    background: rgba(41, 41, 253, 0.38);
-    border: 1px solid rgba(188, 215, 247, 0.42);
-    text-shadow: 0 0 12px rgba(188, 215, 247, 0.7);
-    box-shadow: 0 0 18px -4px rgba(41, 41, 253, 0.6);
+    background: linear-gradient(transparent 55%, rgba(41, 41, 253, 0.75) 55%);
+    text-shadow: 0 0 14px rgba(188, 215, 247, 0.45);
   }
 
   /* Cursor do campo de busca: pisca com fade suave (não liga/desliga seco) */

@@ -1,65 +1,31 @@
 import { Fragment, useMemo } from 'react';
 import type { SearchEngine } from '../types/book';
-import { findHighlightRanges } from '../utils/textMatch';
+import { buildSegments } from '../utils/highlight';
 
 export interface HighlightTextProps {
   text: string;
   query: string;
   engine: SearchEngine;
-  className?: string;
+  /** Versão já destacada pelo Meilisearch (com <mark>), se existir. */
   formatted?: string;
+  className?: string;
 }
 
 /**
- * Renderiza texto destacando os trechos correspondentes à busca com efeito text-glow.
+ * Renderiza o texto com marca-texto nos trechos que casaram com a busca.
+ * O destaque é inline (sem caixa) para não quebrar a palavra em duas.
  */
 export function HighlightText({
   text,
   query,
   engine,
-  className,
   formatted,
+  className,
 }: HighlightTextProps) {
-  const segments = useMemo(() => {
-    if (formatted !== undefined) {
-      return formatted.split(/<mark>([\s\S]*?)<\/mark>/g).map((text, index) => ({
-        text,
-        highlighted: index % 2 === 1,
-      }));
-    }
-    if (engine === 'meili') return [{ text, highlighted: false }];
-
-    const ranges = findHighlightRanges(text, query, engine);
-    if (ranges.length === 0) {
-      return [{ text, highlighted: false }];
-    }
-
-    const parts: Array<{ text: string; highlighted: boolean }> = [];
-    let cursor = 0;
-
-    for (const range of ranges) {
-      if (range.start > cursor) {
-        parts.push({
-          text: text.slice(cursor, range.start),
-          highlighted: false,
-        });
-      }
-      parts.push({
-        text: text.slice(range.start, range.end),
-        highlighted: true,
-      });
-      cursor = range.end;
-    }
-
-    if (cursor < text.length) {
-      parts.push({
-        text: text.slice(cursor),
-        highlighted: false,
-      });
-    }
-
-    return parts;
-  }, [text, query, engine, formatted]);
+  const segments = useMemo(
+    () => buildSegments(text, query, engine, formatted),
+    [text, query, engine, formatted]
+  );
 
   const highlightStyle =
     engine === 'meili' ? 'search-highlight-cyber' : 'search-highlight-mono';
@@ -69,8 +35,8 @@ export function HighlightText({
       {segments.map((segment, index) =>
         segment.highlighted ? (
           <mark
-            key={`${index}-${segment.text}`}
-            className={`${highlightStyle} inline-block rounded-[6px] px-1 py-[0.5px] font-medium transition-colors duration-200`}
+            key={index}
+            className={`${highlightStyle} rounded-[2px] px-[1px] font-[inherit] transition-colors duration-200`}
           >
             {segment.text}
           </mark>

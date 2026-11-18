@@ -1,13 +1,32 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from database.meili_db import start_local_meili
 from MySQL.routers import busca
 from routers import meili
 
-app = FastAPI( 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    meili_proc = start_local_meili()
+    try:
+        yield
+    finally:
+        if meili_proc is not None and meili_proc.poll() is None:
+            meili_proc.terminate()
+            try:
+                meili_proc.wait(timeout=3)
+            except Exception:
+                meili_proc.kill()
+
+
+app = FastAPI(
     title="API de Busca de Acervo",
     description="Comparativo de performance: MySQL (LIKE) vs Meilisearch",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
