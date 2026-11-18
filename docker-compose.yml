@@ -1,0 +1,30 @@
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: busca-tolerante-meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: busca-tolerante-local-master-key-2026
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meili_data:/meili_data
+    restart: unless-stopped
+
+  mysql:
+    image: mariadb:11
+    container_name: busca-tolerante-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: natalino123
+      MARIADB_DATABASE: acervo_busca
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/MySQL/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    restart: unless-stopped
+
+volumes:
+  meili_data:
+  mysql_data:

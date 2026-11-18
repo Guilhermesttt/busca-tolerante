@@ -1,75 +1,200 @@
 # Busca tolerante a erros de digitação
 
-O frontend React/Vite consulta o FastAPI enquanto você digita. A API delega a busca ao Meilisearch e retorna livros, facetas de gênero e ano, trechos destacados e tempo de consulta. O catálogo em `backend/acervo/acervo.json` veio do anexo e contém 20.000 livros.
+Sistema de busca instantânea em um catálogo de **20.000 livros** (`backend/acervo/acervo.json`) comparando **Meilisearch** (índice invertido, tolerância a typos, facetas e destaque) contra **MySQL / MariaDB** com `LIKE '%termo%'`.
 
-## Executar no Windows
+- **Backend:** FastAPI + Meilisearch + MySQL/MariaDB (`mysql-connector-python`)
+- **Frontend:** React + TypeScript + Vite + Tailwind CSS + Framer Motion
+- **Documentação de engenharia:** [AGENTS.md](AGENTS.md) e pasta [docs/](docs/)
 
-1. Inicie o Meilisearch. Baixe o executável da [página oficial de releases](https://github.com/meilisearch/meilisearch/releases), renomeie para `meilisearch.exe` e execute em um terminal PowerShell. Guarde a chave mestra para administrar sua instância local.
+---
 
-   ```powershell
-   $env:MEILI_MASTER_KEY = Read-Host "Chave mestra local de pelo menos 16 caracteres"
-   .\meilisearch.exe --http-addr 127.0.0.1:7700
+## Pré-requisitos
+
+- **Python 3.11+** (recomendado 3.12+)
+- **Node.js 20+** e `npm`
+- **Docker + Docker Compose** *(recomendado)* **ou** Meilisearch + MySQL/MariaDB instalados localmente
+
+---
+
+## Opção 1 — Subir Meilisearch e MySQL/MariaDB com Docker Compose (Windows, macOS e Linux)
+
+Na raiz do repositório:
+
+1. Suba os serviços de apoio:
+   ```bash
+   docker compose up -d
    ```
+   Isso inicia:
+   - **Meilisearch** na porta `7700` (com `MEILI_MASTER_KEY=busca-tolerante-local-master-key-2026`)
+   - **MariaDB (compatível com MySQL)** na porta `3306` (já criando o banco `acervo_busca` e a tabela `livros` via `backend/MySQL/schema.sql`)
 
-2. Em outro terminal, entre no backend e copie o arquivo de exemplo. Use um Python instalado e compatível com as dependências, como o 3.12. Se o ambiente virtual antigo apontar para um Python removido, use um ambiente novo.
+2. Consulte as chaves do Meilisearch e configure o `backend/.env`:
+   - No **macOS / Linux**:
+     ```bash
+     cd backend
+     cp .env_example .env
+     curl -s http://127.0.0.1:7700/keys -H "Authorization: Bearer busca-tolerante-local-master-key-2026"
+     ```
+   - No **Windows (PowerShell)**:
+     ```powershell
+     cd backend
+     Copy-Item .env_example .env
+     Invoke-RestMethod -Uri "http://127.0.0.1:7700/keys" -Headers @{ Authorization = "Bearer busca-tolerante-local-master-key-2026" } | Select-Object -ExpandProperty results
+     ```
+   Preencha `MEILI_SEARCH_KEY` (chave `Default Search API Key`) e `MEILI_ADMIN_KEY` (chave `Default Admin API Key`) no arquivo `backend/.env`.
 
+---
+
+## Opção 2 — Executar sem Docker por Sistema Operacional
+
+### Windows (PowerShell)
+
+1. **Instale o Meilisearch e o MariaDB/MySQL:**
+   - Baixe `meilisearch-windows-amd64.exe` das [releases oficiais do Meilisearch](https://github.com/meilisearch/meilisearch/releases), renomeie para `meilisearch.exe` e coloque em `backend/.meili/` junto com `master.key` (o FastAPI inicia o binário local automaticamente ao rodar o `uvicorn`), **ou** execute manualmente:
+     ```powershell
+     $env:MEILI_MASTER_KEY = "busca-tolerante-local-master-key-2026"
+     .\meilisearch.exe --http-addr 127.0.0.1:7700
+     ```
+   - Instale o MySQL ou MariaDB (`winget install MariaDB.Server`), aplique `backend/MySQL/schema.sql` e configure `MYSQL_*` em `backend/.env`.
+
+2. **Crie o ambiente Python, instale dependências e importe os dados:**
    ```powershell
    cd backend
-   Copy-Item .env_example .env
-   python -m pip install -r requirements.txt
-   ```
-
-3. Consulte `GET http://127.0.0.1:7700/keys` com a chave mestra como Bearer token. Preencha `MEILI_ADMIN_KEY` com a **Default Admin API Key** e `MEILI_SEARCH_KEY` com a **Default Search API Key**. Se usar uma instância remota, ajuste `MEILI_URL`. O arquivo `.env` é local e as chaves ficam no backend. Em uma instância de desenvolvimento iniciada sem chave mestra, os dois campos podem ficar vazios.
-
-4. Importe o acervo e suba a API.
-
-   ```powershell
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
    python -m scripts.seed_data
+   python -m scripts.importar_mysql
    python -m uvicorn main:app --reload
    ```
 
-5. Em outro terminal aberto na raiz, suba o frontend e abra `http://localhost:5173`.
-
+3. **Em outro terminal, suba o frontend:**
    ```powershell
    cd frontend
-   npm.cmd install
-   npm.cmd run dev
+   npm install
+   npm run dev
    ```
 
-## Reiniciar o Meilisearch local
+---
 
-Para reiniciar a instância local já configurada em `backend/.meili`, execute este comando na raiz e mantenha o terminal aberto. O índice fica em disco em `backend/.meili/data.ms`.
+### macOS (zsh / bash)
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File backend/scripts/start_meili.ps1
+1. **Instale os serviços via Homebrew (caso não use Docker):**
+   ```bash
+   brew install meilisearch mariadb
+   brew services start mariadb
+   meilisearch --master-key="busca-tolerante-local-master-key-2026" --http-addr 127.0.0.1:7700
+   ```
+   Aplique o schema no banco:
+   ```bash
+   mariadb -u root < backend/MySQL/schema.sql
+   ```
+
+2. **Configure o backend e importe os 20.000 livros:**
+   ```bash
+   cd backend
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   cp .env_example .env
+   # Preencha MEILI_SEARCH_KEY, MEILI_ADMIN_KEY e MYSQL_PASSWORD no .env
+   python -m scripts.seed_data
+   python -m scripts.importar_mysql
+   uvicorn main:app --reload
+   ```
+
+3. **Em outro terminal, suba o frontend:**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+---
+
+### Linux (Ubuntu / Debian / Arch)
+
+1. **Instale o Meilisearch e o MariaDB/MySQL (caso não use Docker):**
+   ```bash
+   # Meilisearch
+   curl -L https://install.meilisearch.com | sh
+   ./meilisearch --master-key="busca-tolerante-local-master-key-2026" --http-addr 127.0.0.1:7700
+
+   # MariaDB (Ubuntu/Debian)
+   sudo apt update && sudo apt install -y mariadb-server
+   sudo systemctl enable --now mariadb
+   sudo mariadb < backend/MySQL/schema.sql
+   ```
+
+2. **Configure o backend e importe os 20.000 livros:**
+   ```bash
+   cd backend
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   cp .env_example .env
+   # Preencha MEILI_SEARCH_KEY, MEILI_ADMIN_KEY e MYSQL_PASSWORD no .env
+   python -m scripts.seed_data
+   python -m scripts.importar_mysql
+   uvicorn main:app --reload
+   ```
+
+3. **Em outro terminal, suba o frontend:**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+Acesse a aplicação em **`http://localhost:5173`**.
+
+---
+
+## Testes Automatizados (`pytest`)
+
+Para validar as regras centrais do desafio (escape seguro de curingas `LIKE`, normalização de acervo, busca MySQL parametrizada, filtros/facetas/highlight do Meilisearch e respostas `503`):
+
+```bash
+cd backend
+python -m pytest -v
 ```
 
-Se alterar as chaves em `backend/.env`, reinicie também o FastAPI. A URL `http://127.0.0.1:7700/health` verifica se o Meilisearch está ativo.
+---
 
-## Como a busca funciona
+## Pergunta Central e Decisões de Arquitetura
 
-- **Busca instantânea.** O frontend espera 200 ms após a última alteração e cancela a consulta anterior quando você continua digitando. Consulta `GET /api/busca/meili` com `termo`, `genero` e `ano`. Cada busca exibe até 30 livros. As contagens das facetas refletem a consulta com os filtros ativos.
-- **Destaque.** O Meilisearch devolve título, autor e trechos da sinopse em `_formatted`. O React converte as marcações em elementos `<mark>` e renderiza o restante como texto.
-- **Índice invertido.** É uma estrutura que associa termos aos documentos onde aparecem. Ao buscar, o motor consulta essas associações e aplica regras de relevância. [Como funciona a busca de texto completo](https://www.meilisearch.com/blog/how-full-text-search-engines-work)
-- **Relevância.** A ordem dos campos é título, autor e sinopse. Essa ordem vale na etapa de ranking por atributo. As regras anteriores, como quantidade de erros e proximidade entre palavras, também influenciam a classificação. A consulta exige correspondência para todos os termos e a configuração permite um erro a partir de quatro letras e dois a partir de nove. Gênero e ano são facetas.
-- **MySQL e acentos.** `LIKE '%termo%'` procura um padrão contíguo e não calcula distância de edição. A comparação de acentos depende da collation. Uma collation como `utf8mb4_0900_ai_ci` pode equiparar letras com e sem acento. [Comparações de texto no MySQL](https://dev.mysql.com/doc/refman/8.4/en/string-comparison-functions.html) · [Convenções de collation](https://dev.mysql.com/doc/refman/26.7/en/charset-collation-names.html)
-- **Sincronização.** A implementação atual importa o JSON por ID. Reimportar o mesmo ID substitui o documento, e remover uma entrada do JSON exige excluir o ID no índice. Quando o MySQL tiver operações de escrita, a estratégia é registrar um evento de inclusão, edição ou exclusão na mesma transação da alteração do livro. Um worker lê os eventos, envia a atualização ou exclusão ao Meilisearch e confirma o evento após o sucesso da tarefa. O ID estável permite retentativas, e o índice passa a refletir as mudanças de forma assíncrona.
+As decisões detalhadas estão em [AGENTS.md](AGENTS.md) e na pasta [docs/](docs/):
 
-## Demonstração
+- **Por que o `LIKE` não trata erro de digitação nem acentuação?**  
+  `LIKE '%termo%'` realiza correspondência literal de substring contígua e não calcula distância de edição (Levenshtein). O `%` à esquerda também impede o uso do índice B-Tree (`idx_titulo`), forçando um *Full Table Scan*. Já a acentuação depende da *collation* (`utf8mb4_unicode_ci`), mas qualquer letra faltante ou sobrando faz a consulta retornar `0` resultados.
+- **O que é um índice invertido?**  
+  Estrutura que mapeia cada palavra/prefixo diretamente para a lista de IDs dos documentos onde ela aparece, evitando varrer os 20.000 livros linha a linha.
+- **Relevância (`titulo` > `autor` > `sinopse`):**  
+  Configurada em `backend/scripts/seed_data.py` via `searchableAttributes: ["titulo", "autor", "sinopse"]` com tolerância a 1 erro a partir de 4 letras e 2 erros a partir de 9 letras (`typoTolerance`).
+- **Sincronização MySQL → Meilisearch:**  
+  Carga idempotente pelo `id` primário e padrão **Transactional Outbox** documentado em [ADR-002](docs/ADR-002-relevancia-e-sincronizacao.md).
 
-Com a API rodando, execute `python -m scripts.benchmark_busca` a partir de `backend`. A tabela mede do envio da requisição HTTP até a leitura da resposta e lista até três títulos por consulta. Uma busca de controle por `Dom Casmurro` verifica se o endpoint MySQL consegue acessar o acervo antes da comparação.
+---
 
-Medição local com 20.000 livros indexados. A coluna MySQL fica pendente enquanto o endpoint retorna uma lista vazia fixa.
+## Demonstração (10 buscas com erro de digitação)
 
-| Consulta | Meilisearch (ms) | Resultados Meilisearch | MySQL (ms / resultados) |
+Com a API rodando na porta `8000`, execute dentro de `backend/`:
+
+```bash
+python -m scripts.benchmark_busca --url http://127.0.0.1:8000
+```
+
+Resultado observado comparando as duas abordagens sobre os mesmos **20.000 livros**:
+
+| Consulta | Meilisearch (ms) | Resultados Meilisearch | MySQL `LIKE` |
 | --- | ---: | --- | --- |
-| `harry poter` | 21,38 | 7 retornados, primeiro Harry Potter e a Câmara Secreta | Pendente |
-| `machado de asis` | 18,52 | 30 retornados, primeiro Memorial de Aires | Pendente |
-| `dom casmuro` | 7,39 | Dom Casmurro | Pendente |
-| `quincas borbaa` | 17,28 | Quincas Borba | Pendente |
-| `memorial de airesz` | 6,16 | Memorial de Aires | Pendente |
-| `camara secretta` | 4,70 | Harry Potter e a Câmara Secreta | Pendente |
-| `prisioneiro de azkabanx` | 5,73 | Harry Potter e o Prisioneiro de Azkaban | Pendente |
-| `ordem da fenixx` | 5,63 | Harry Potter e a Ordem da Fênix | Pendente |
-| `memorias postumas de bras cubass` | 14,86 | Memórias Póstumas de Brás Cubas | Pendente |
-| `reliquias da mortez` | 4,66 | Harry Potter e as Relíquias da Morte | Pendente |
+| `harry poter` | ~21 ms | 7 retornados (*Harry Potter e a Câmara Secreta*, ...) | 0 retornados |
+| `machado de asis` | ~18 ms | 30 retornados (*Memorial de Aires*, *Memórias Póstumas...*) | 0 retornados |
+| `dom casmuro` | ~7 ms | 1 retornado (*Dom Casmurro*) | 0 retornados |
+| `quincas borbaa` | ~17 ms | 1 retornado (*Quincas Borba*) | 0 retornados |
+| `memorial de airesz` | ~6 ms | 1 retornado (*Memorial de Aires*) | 0 retornados |
+| `camara secretta` | ~5 ms | 1 retornado (*Harry Potter e a Câmara Secreta*) | 0 retornados |
+| `prisioneiro de azkabanx` | ~6 ms | 1 retornado (*Harry Potter e o Prisioneiro de Azkaban*) | 0 retornados |
+| `ordem da fenixx` | ~6 ms | 1 retornado (*Harry Potter e a Ordem da Fênix*) | 0 retornados |
+| `memorias postumas de bras cubass` | ~15 ms | 1 retornado (*Memórias Póstumas de Brás Cubas*) | 0 retornados |
+| `reliquias da mortez` | ~5 ms | 1 retornado (*Harry Potter e as Relíquias da Morte*) | 0 retornados |
